@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Payment Form</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css" />
+<script src="https://js.stripe.com/v3/"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"/>
+
+</head>
+<body>
+<form action="charge.php" method="post" id="payment-form">
+  <div>
+    <label for="amount">Amount:</label>
+    <input type="text" name="amount" id="amount" />
+  </div>
+  <div>
+    <label for="currency">Currency:</label>
+    <select name="currency" id="currency">
+      <option value="usd">USD</option>
+      <option value="inr">INR</option>
+    </select>
+  </div>
+  <div>
+    <label for="card-element">
+      Credit or debit card
+    </label>
+    <div id="card-element">
+      <!-- A Stripe Element will be inserted here. -->
+    </div>
+  </div>
+  <button type="submit">Submit Payment</button>
+</form>
+
+<script>
+var stripe = Stripe('YOUR_PUBLIC_KEY'); // Replace with your Stripe public key
+var elements = stripe.elements();
+var style = {
+  base: {
+    color: "#32325d",
+  },
+};
+
+var card = elements.create("card", { style: style });
+card.mount("#card-element");
+
+card.addEventListener('change', ({error}) => {
+  const displayError = document.getElementById('card-errors');
+  if (error) {
+    displayError.textContent = error.message;
+  } else {
+    displayError.textContent = '';
+  }
+});
+var form = document.getElementById('payment-form');
+form.addEventListener('submit', function(ev) {
+  ev.preventDefault();
+
+  // Fetch the client secret from the server
+  var amount = document.getElementById('amount').value;
+
+  fetch('charge.php', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+    body: 'amount=' + encodeURIComponent(amount)
+  })
+  .then(function(response) {
+    if (!response.ok) {
+      return response.json().then(function(error) {
+        throw new Error(error.error);
+      });
+    }
+    return response.json();
+  })
+  .then(function(data) {
+    if (data.clientSecret) {
+      stripe.confirmCardPayment(data.clientSecret, {
+        payment_method: {
+          card: card,
+          billing_details: {
+            name: 'Aman Abhishek'
+          }
+        }
+      }).then(function(result) {
+        if (result.error) {
+          // Show error to your customer (e.g., card not supported)
+          console.log(result.error.message);
+          alert('Payment failed: ' + result.error.message + '. Please use a different payment method or contact your bank.');
+
+          // Optionally show a retry button
+          var retryDiv = document.createElement('div');
+          retryDiv.innerHTML = `
+            <p>Your payment could not be completed: ${result.error.message}</p>
+            <button id="retry-button">Retry Payment</button>
+          `;
+          document.body.appendChild(retryDiv);
+
+          // Retry payment button listener
+          document.getElementById('retry-button').addEventListener('click', function() {
+            location.reload(); // Simply reload the page for a new attempt, or handle retry more smoothly.
+          });
+          
+        } else {
+          // The payment has been processed!
+          if (result.paymentIntent.status === 'succeeded') {
+            // Show a success message to your customer
+            var body = document.querySelector("body");
+            body.innerHTML = '<div class="animate__animated animate__bounceIn">Payment Successful!</div>';
+            body.style.fontSize = '2em';
+            body.style.color = 'green';
+            body.style.textAlign = 'center';
+            body.style.marginTop = '20vh';
+          }
+        }
+      });
+    }
+  })
+  .catch(function(error) {
+    console.error('Error:', error);
+    alert('An error occurred: ' + error.message);
+  });
+});
+
+
+
+
+</script>
+</body>
+</html>
