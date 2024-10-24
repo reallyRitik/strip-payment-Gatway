@@ -2,38 +2,102 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Payment Form</title>
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css" />
+<title>ExportersWay Strip Payment Form</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+ <link rel="icon" type="image/x-icon" href="https://exportersway.com/companylogo/exportersway-logo.png">
+<!-- Bootstrap for responsiveness -->
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+<!-- Custom CSS for additional styling -->
+<style>
+  body {
+    font-family: Arial, sans-serif;
+  }
+  .navbar-custom {
+    background-color: #f8f9fa;
+    padding: 10px 20px;
+  }
+  .navbar-brand {
+    font-size: 1.5em;
+  }
+  .navbar-right {
+    font-size: 1.2em;
+  }
+  #payment-form {
+    max-width: 600px;
+    margin: 50px auto;
+    padding: 20px;
+    border: 1px solid #ddd;
+    border-radius: 10px;
+    background-color: #f9f9f9;
+  }
+  .form-group {
+    margin-bottom: 15px;
+  }
+  #card-errors {
+    color: red;
+    margin-top: 10px;
+  }
+  @media (max-width: 768px) {
+    .navbar-right {
+      font-size: 1em;
+      text-align: right;
+    }
+  }
+</style>
 <script src="https://js.stripe.com/v3/"></script>
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"/>
-
 </head>
 <body>
-<form action="charge.php" method="post" id="payment-form">
-  <div>
-    <label for="amount">Amount:</label>
-    <input type="text" name="amount" id="amount" />
+
+<!-- Navbar section -->
+<nav class="navbar navbar-expand-lg navbar-light navbar-custom">
+  <a class="navbar-brand" href="https://exportersway.com/"><img src="https://exportersway.com/companylogo/exportersway-logo.png" style="width:15%"></a>
+  <div class="ms-auto navbar-right">
+  <span class="me-3">
+  <a href="tel:+01146591110" style="text-decoration: none;
+    color: black;">
+    <i class="bi bi-telephone-fill"></i> +011-46591110
+  </a>
+</span>
   </div>
-  <div>
+</nav>
+
+<!-- Payment form -->
+<form action="charge.php" method="post" id="payment-form">
+  <div class="form-group">
+    <label for="name">Name:</label>
+    <input type="text" name="name" id="name" class="form-control" placeholder="Enter your name" required />
+  </div>
+  <div class="form-group">
+    <label for="email">Email:</label>
+    <input type="email" name="email" id="email" class="form-control" placeholder="Enter your email" required />
+  </div>
+  <div class="form-group">
+    <label for="amount">Amount:</label>
+    <input type="text" name="amount" id="amount" class="form-control" placeholder="Enter amount" required />
+  </div>
+  <div class="form-group">
     <label for="currency">Currency:</label>
-    <select name="currency" id="currency">
+    <select name="currency" id="currency" class="form-control">
       <option value="usd">USD</option>
       <option value="inr">INR</option>
     </select>
   </div>
-  <div>
-    <label for="card-element">
-      Credit or debit card
-    </label>
-    <div id="card-element">
+  <div class="form-group">
+    <label for="card-element">Credit or debit card</label>
+    <div id="card-element" class="form-control">
       <!-- A Stripe Element will be inserted here. -->
     </div>
+    <div id="card-errors" role="alert"></div>
   </div>
-  <button type="submit">Submit Payment</button>
+  <button type="submit" id="submit-button" class="btn btn-primary mt-3 w-100">Submit Payment</button>
 </form>
 
+<div id="processing-message" style="display:none; text-align:center; margin-top:10px;">
+  <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Processing...
+</div>
+
 <script>
-var stripe = Stripe('YOUR_PUBLIC_KEY'); // Replace with your Stripe public key
+var stripe = Stripe('Stripe public key '); // Replace with your Stripe public key 
 var elements = stripe.elements();
 var style = {
   base: {
@@ -52,11 +116,19 @@ card.addEventListener('change', ({error}) => {
     displayError.textContent = '';
   }
 });
+
 var form = document.getElementById('payment-form');
+var submitButton = document.getElementById('submit-button');
+var processingMessage = document.getElementById('processing-message');
+
 form.addEventListener('submit', function(ev) {
   ev.preventDefault();
 
-  // Fetch the client secret from the server
+  // Hide the submit button and show the processing message
+  submitButton.style.display = 'none';
+  processingMessage.style.display = 'block';
+
+  var name = document.getElementById('name').value; // Get name from input
   var amount = document.getElementById('amount').value;
 
   fetch('charge.php', {
@@ -80,32 +152,20 @@ form.addEventListener('submit', function(ev) {
         payment_method: {
           card: card,
           billing_details: {
-            name: 'Aman Abhishek'
+            name: name // Automatically use the customer's name
           }
         }
       }).then(function(result) {
         if (result.error) {
-          // Show error to your customer (e.g., card not supported)
           console.log(result.error.message);
           alert('Payment failed: ' + result.error.message + '. Please use a different payment method or contact your bank.');
-
-          // Optionally show a retry button
-          var retryDiv = document.createElement('div');
-          retryDiv.innerHTML = `
-            <p>Your payment could not be completed: ${result.error.message}</p>
-            <button id="retry-button">Retry Payment</button>
-          `;
-          document.body.appendChild(retryDiv);
-
-          // Retry payment button listener
-          document.getElementById('retry-button').addEventListener('click', function() {
-            location.reload(); // Simply reload the page for a new attempt, or handle retry more smoothly.
-          });
           
+          // Show retry button if payment fails
+          submitButton.style.display = 'block';
+          processingMessage.style.display = 'none';
+
         } else {
-          // The payment has been processed!
           if (result.paymentIntent.status === 'succeeded') {
-            // Show a success message to your customer
             var body = document.querySelector("body");
             body.innerHTML = '<div class="animate__animated animate__bounceIn">Payment Successful!</div>';
             body.style.fontSize = '2em';
@@ -120,12 +180,15 @@ form.addEventListener('submit', function(ev) {
   .catch(function(error) {
     console.error('Error:', error);
     alert('An error occurred: ' + error.message);
+    submitButton.style.display = 'block'; // Re-show submit button if there's an error
+    processingMessage.style.display = 'none';
   });
 });
-
-
-
-
 </script>
+
+<!-- Bootstrap JS for responsive behavior -->
+<script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.6/dist/umd/popper.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.min.js"></script>
+
 </body>
 </html>
